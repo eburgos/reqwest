@@ -10,8 +10,8 @@
   else context[name] = definition()
 }('reqwest', this, function () {
 
-  var win = window
-    , doc = document
+  var win = (typeof(window) !== 'undefined')? window : this
+    , doc = win.document
     , httpsRe = /^http/
     , protocolRe = /(^\w+):\/\//
     , twoHundo = /^(20\d|1223)$/ //http://stackoverflow.com/questions/10046972/msie-returns-status-code-of-1223-for-ajax-request
@@ -19,7 +19,6 @@
     , readyState = 'readyState'
     , contentType = 'Content-Type'
     , requestedWith = 'X-Requested-With'
-    , head = doc[byTag]('head')[0]
     , uniqid = 0
     , callbackPrefix = 'reqwest_' + (+new Date())
     , lastValue // data stored by the most recent JSONP callback
@@ -67,7 +66,7 @@
         dataFilter: function (data) {
           return data
         }
-      }
+      };
 
   function succeed(r) {
     var protocol = protocolRe.exec(r.url);
@@ -128,6 +127,7 @@
       , match = url.match(cbreg)
       , script = doc.createElement('script')
       , loaded = 0
+      , head = doc[byTag]('head')[0]
       , isIE10 = navigator.userAgent.indexOf('MSIE 10.0') !== -1
 
     if (match) {
