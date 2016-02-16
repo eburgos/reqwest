@@ -1,15 +1,27 @@
 !function (name, context, definition) {
   if (typeof module != 'undefined' && module.exports) module.exports = definition()
-  else if (typeof define == 'function' && define.amd) define(definition)
+  else if (typeof define == 'function' && define.amd) define([], definition)
   else context[name] = definition()
 }('reqwest', this, function () {
 
-  var win = (typeof(window) !== 'undefined')? window : this
-    , doc = win.document
-    , httpsRe = /^http/
+  var context = this
+
+  if ('document' in context) {
+    var doc = document
+      , byTag = 'getElementsByTagName'
+      , head = doc[byTag]('head')[0]
+  } else {
+    var XHR2
+    try {
+      XHR2 = require('xhr2')
+    } catch (ex) {
+      throw new Error('Peer dependency `xhr2` required! Please npm install xhr2')
+    }
+  }
+
+  var httpsRe = /^http/
     , protocolRe = /(^\w+):\/\//
     , twoHundo = /^(20\d|1223)$/ //http://stackoverflow.com/questions/10046972/msie-returns-status-code-of-1223-for-ajax-request
-    , byTag = 'getElementsByTagName'
     , readyState = 'readyState'
     , contentType = 'Content-Type'
     , requestedWith = 'X-Requested-With'
@@ -42,16 +54,23 @@
     , xhr = function(o) {
         // is it x-domain
         if (o['crossOrigin'] === true) {
-          var xhr = win[xmlHttpRequest] ? new XMLHttpRequest() : null
+          var xhr = context[xmlHttpRequest] ? new XMLHttpRequest() : null
           if (xhr && 'withCredentials' in xhr) {
             return xhr
-          } else if (win[xDomainRequest]) {
+          } else if (context[xDomainRequest]) {
+            var protocolRegExp = /^https?/;
+            if (window.location.href.match(protocolRegExp)[0] !== o.url.match(protocolRegExp)[0]) {
+              throw new Error('XDomainRequest: requests must be targeted to the same scheme as the hosting page.')
+              // As per: http://blogs.msdn.com/b/ieinternals/archive/2010/05/13/xdomainrequest-restrictions-limitations-and-workarounds.aspx
+            }
             return new XDomainRequest()
           } else {
             throw new Error('Browser does not support cross-origin requests')
           }
-        } else if (win[xmlHttpRequest]) {
+        } else if (context[xmlHttpRequest]) {
           return new XMLHttpRequest()
+        } else if (XHR2) {
+          return new XHR2()
         } else {
           return new ActiveXObject('Microsoft.XMLHTTP')
         }
@@ -60,12 +79,12 @@
         dataFilter: function (data) {
           return data
         }
-      };
+      }
 
   function succeed(r) {
-    var protocol = protocolRe.exec(r.url);
-    protocol = (protocol && protocol[1]) || window.location.protocol;
-    return httpsRe.test(protocol) ? twoHundo.test(r.request.status) : !!r.request.response;
+    var protocol = protocolRe.exec(r.url)
+    protocol = (protocol && protocol[1]) || context.location.protocol
+    return httpsRe.test(protocol) ? twoHundo.test(r.request.status) : !!r.request.response
   }
 
   function handleReadyState(r, success, error) {
@@ -91,7 +110,7 @@
       || defaultHeaders['accept'][o['type']]
       || defaultHeaders['accept']['*']
 
-    var isAFormData = typeof FormData === 'function' && (o['data'] instanceof FormData);
+    var isAFormData = typeof FormData !== 'undefined' && (o['data'] instanceof FormData);
     // breaks cross-origin requests with legacy browsers
     if (!o['crossOrigin'] && !headers[requestedWith]) headers[requestedWith] = defaultHeaders['requestedWith']
     if (!headers[contentType] && !isAFormData) headers[contentType] = o['contentType'] || defaultHeaders['contentType']
@@ -121,7 +140,6 @@
       , match = url.match(cbreg)
       , script = doc.createElement('script')
       , loaded = 0
-      , head = doc[byTag]('head')[0]
       , isIE10 = navigator.userAgent.indexOf('MSIE 10.0') !== -1
 
     if (match) {
@@ -134,7 +152,7 @@
       url = urlappend(url, cbkey + '=' + cbval) // no callback details, add 'em
     }
 
-    win[cbval] = generalCallback
+    context[cbval] = generalCallback
 
     script.type = 'text/javascript'
     script.src = url
@@ -201,7 +219,7 @@
     http.open(method, url, o['async'] === false ? false : true)
     setHeaders(http, o)
     setCredentials(http, o)
-    if (win[xDomainRequest] && http instanceof win[xDomainRequest]) {
+    if (context[xDomainRequest] && http instanceof context[xDomainRequest]) {
         http.onload = fn
         http.onerror = err
         // NOTE: see
@@ -231,6 +249,7 @@
 
   function setType(header) {
     // json, javascript, text/plain, text/html, xml
+    if (header === null) return undefined; //In case of no content-type.
     if (header.match('json')) return 'json'
     if (header.match('javascript')) return 'js'
     if (header.match('text')) return 'html'
@@ -306,7 +325,7 @@
         switch (type) {
         case 'json':
           try {
-            resp = win.JSON ? win.JSON.parse(r) : eval('(' + r + ')')
+            resp = context.JSON ? context.JSON.parse(r) : eval('(' + r + ')')
           } catch (err) {
             return error(resp, 'Could not parse JSON in response', err)
           }
@@ -341,7 +360,7 @@
 
     function timedOut() {
       self._timedOut = true
-      self.request.abort()      
+      self.request.abort()
     }
 
     function error(resp, msg, t) {
