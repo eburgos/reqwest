@@ -10,7 +10,7 @@
   else context[name] = definition()
 }('reqwest', this, function () {
 
-  var context = this
+  var context = (typeof(window) !== 'undefined')? window : this
 
   if ('window' in context) {
     var doc = document
