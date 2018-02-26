@@ -17,12 +17,12 @@
       , byTag = 'getElementsByTagName'
       , head = doc[byTag]('head')[0]
   } else {
-    var XHR2
-    try {
-      XHR2 = require('xhr2')
-    } catch (ex) {
-      throw new Error('Peer dependency `xhr2` required! Please npm install xhr2')
-    }
+    var XHR2 = null;
+//    try {
+//      XHR2 = require('xhr2')
+//    } catch (ex) {
+//      throw new Error('Peer dependency `xhr2` required! Please npm install xhr2')
+//    }
   }
 
 
